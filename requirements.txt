@@ -1,0 +1,53 @@
+# =========================
+# Core
+# =========================
+pandas>=2.0.0
+numpy>=1.24.0
+
+# =========================
+# Google Cloud
+# =========================
+google-cloud-bigquery>=3.11.0
+google-cloud-storage>=2.10.0
+google-cloud-core>=2.3.0
+google-cloud-secret-manager
+
+# =========================
+# Gemini / GenAI
+# =========================
+google-genai
+google-generativeai>=0.7.0
+
+# =========================
+# Async + HTTP
+# =========================
+aiohttp>=3.9.0
+requests>=2.31.0
+urllib3>=2.0.0
+
+# =========================
+# Env + Config
+# =========================
+python-dotenv>=1.0.0
+
+# =========================
+# Retry / resilience
+# =========================
+tenacity>=8.2.0
+
+# =========================
+# Logging
+# =========================
+# (builtin logging used, no install needed)
+
+# =========================
+# OpenTelemetry (used in telemetry file)
+# =========================
+opentelemetry-api>=1.25.0
+opentelemetry-sdk>=1.25.0
+
+# =========================
+# Optional (BigQuery DataFrame support)
+# =========================
+pyarrow>=14.0.0
+db-dtypes>=1.2.0
