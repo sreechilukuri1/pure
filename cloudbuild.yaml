@@ -1,0 +1,81 @@
+# Cloud Build pipeline: build image and update-or-create Cloud Run Jobs
+substitutions:
+	_REGION: "us-central1"
+
+images:
+	- "gcr.io/$PROJECT_ID/pure-data-pipeline:$SHORT_SHA"
+
+steps:
+	# Build the container image
+	- name: 'gcr.io/cloud-builders/docker'
+		args: ['build', '-t', 'gcr.io/$PROJECT_ID/pure-data-pipeline:$SHORT_SHA', '.']
+
+	# Push the image to Container Registry
+	- name: 'gcr.io/cloud-builders/docker'
+		args: ['push', 'gcr.io/$PROJECT_ID/pure-data-pipeline:$SHORT_SHA']
+
+	# Update-or-create Cloud Run Jobs. If update fails (job not found), create it.
+	- name: 'gcr.io/cloud-builders/gcloud'
+		entrypoint: 'bash'
+		args:
+			- '-c'
+			- |
+				set -euo pipefail
+
+				echo "Updating or creating ingest-persons job..."
+				if ! gcloud run jobs update ingest-persons \
+						--image gcr.io/$PROJECT_ID/pure-data-pipeline:$SHORT_SHA \
+						--region $_REGION \
+						--set-env-vars=JOB_TYPE=INGEST_PERSONS \
+						--tasks=1 --max-retries=0 --timeout=3600s --memory=2Gi --cpu=1; then
+					echo "Job not found, creating ingest-persons..."
+					gcloud run jobs create ingest-persons \
+						--image gcr.io/$PROJECT_ID/pure-data-pipeline:$SHORT_SHA \
+						--region $_REGION \
+						--set-env-vars=JOB_TYPE=INGEST_PERSONS \
+						--tasks=1 --max-retries=0 --timeout=3600s --memory=2Gi --cpu=1
+				fi
+
+				echo "Updating or creating ingest-fingerprint-concepts job..."
+				if ! gcloud run jobs update ingest-fingerprint-concepts \
+						--image gcr.io/$PROJECT_ID/pure-data-pipeline:$SHORT_SHA \
+						--region $_REGION \
+						--set-env-vars=JOB_TYPE=INGEST_FINGERPRINT_CONCEPTS \
+						--tasks=1 --max-retries=0 --timeout=3600s --memory=4Gi --cpu=2; then
+					echo "Job not found, creating ingest-fingerprint-concepts..."
+					gcloud run jobs create ingest-fingerprint-concepts \
+						--image gcr.io/$PROJECT_ID/pure-data-pipeline:$SHORT_SHA \
+						--region $_REGION \
+						--set-env-vars=JOB_TYPE=INGEST_FINGERPRINT_CONCEPTS \
+						--tasks=1 --max-retries=0 --timeout=3600s --memory=4Gi --cpu=2
+				fi
+
+				echo "Updating or creating ingest-publications job..."
+				if ! gcloud run jobs update ingest-publications \
+						--image gcr.io/$PROJECT_ID/pure-data-pipeline:$SHORT_SHA \
+						--region $_REGION \
+						--set-env-vars=JOB_TYPE=INGEST_PUBLICATIONS \
+						--tasks=1 --max-retries=0 --timeout=3600s --memory=4Gi --cpu=2; then
+					echo "Job not found, creating ingest-publications..."
+					gcloud run jobs create ingest-publications \
+						--image gcr.io/$PROJECT_ID/pure-data-pipeline:$SHORT_SHA \
+						--region $_REGION \
+						--set-env-vars=JOB_TYPE=INGEST_PUBLICATIONS \
+						--tasks=1 --max-retries=0 --timeout=3600s --memory=4Gi --cpu=2
+				fi
+
+				echo "Updating or creating ingest-researchers job..."
+				if ! gcloud run jobs update ingest-researchers \
+						--image gcr.io/$PROJECT_ID/pure-data-pipeline:$SHORT_SHA \
+						--region $_REGION \
+						--set-env-vars=JOB_TYPE=INGEST_RESEARCHERS \
+						--tasks=1 --max-retries=0 --timeout=7200s --memory=8Gi --cpu=4; then
+					echo "Job not found, creating ingest-researchers..."
+					gcloud run jobs create ingest-researchers \
+						--image gcr.io/$PROJECT_ID/pure-data-pipeline:$SHORT_SHA \
+						--region $_REGION \
+						--set-env-vars=JOB_TYPE=INGEST_RESEARCHERS \
+						--tasks=1 --max-retries=0 --timeout=7200s --memory=8Gi --cpu=4
+				fi
+
+timeout: 1800s

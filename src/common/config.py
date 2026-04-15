@@ -1,9 +1,12 @@
-import os
-from dotenv import load_dotenv
-from genai_client import get_secret_payload
 
-# Load .env
+import os
+import logging
+from dotenv import load_dotenv
+
+# Load .env (harmless if not present)
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 # =========================
@@ -22,20 +25,66 @@ FINGERPRINT = os.getenv("FINGERPRINT")
 CONCEPTS = os.getenv("CONCEPTS")
 RESEARCHERS_RAW = os.getenv("RESEARCHERS_RAW")
 RESEARCHERS = os.getenv("RESEARCHERS")
-PUBLICATIONS=os.getenv("PUBLICATIONS")
-PUBLICATIONS_AUTHOR_MAP=os.getenv("PUBLICATIONS_AUTHOR_MAP")
+PUBLICATIONS = os.getenv("PUBLICATIONS")
+PUBLICATIONS_AUTHOR_MAP = os.getenv("PUBLICATIONS_AUTHOR_MAP")
+
 
 # =========================
-# API CONFIG (From Secret Manager)
+# SECRET / API CONFIG
 # =========================
-# Use the Secret Name/ID as it appears in the GCP Console
-API_KEY = get_secret_payload("suny-gai-pure-api-key-dev") 
-API_BASE_URL = os.getenv("API_BASE_URL") # Usually kept as env var as it's not a secret
+# Do NOT fetch secrets at import time. Prefer environment-injected secrets (Cloud Run Secret Manager)
+# or call the lazy getters below from application startup.
 
-# =========================
-# GEMINI
-# =========================
-GEMINI_API_KEY = get_secret_payload("suny-gai-gemini-api-key-dev")
+_API_KEY = os.getenv("API_KEY")
+_GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+API_BASE_URL = os.getenv("API_BASE_URL")  # usually not secret
+
+
+def get_api_key(refresh: bool = False):
+	"""Return API key. If not present in env, attempt to fetch from Secret Manager lazily.
+
+	This function caches value on first successful fetch. Call this from startup (entrypoint) so
+	failures happen early and not during module import.
+	"""
+	global _API_KEY
+	if _API_KEY and not refresh:
+		return _API_KEY
+
+	# attempt to fetch from Secret Manager only if env var not set
+	try:
+		if not _API_KEY:
+			# import locally to avoid circular imports at module load time
+			from common.genai_client import get_secret_payload
+			_API_KEY = get_secret_payload("suny-gai-pure-api-key-dev")
+			logger.info("Loaded API_KEY from Secret Manager")
+	except Exception as e:
+		logger.debug(f"Could not load API_KEY from Secret Manager: {e}")
+
+	return _API_KEY
+
+
+def get_gemini_api_key(refresh: bool = False):
+	"""Return Gemini/GEMINI API key; lazy-load from Secret Manager if missing in env."""
+	global _GEMINI_API_KEY
+	if _GEMINI_API_KEY and not refresh:
+		return _GEMINI_API_KEY
+
+	try:
+		if not _GEMINI_API_KEY:
+			from common.genai_client import get_secret_payload
+			_GEMINI_API_KEY = get_secret_payload("suny-gai-gemini-api-key-dev")
+			logger.info("Loaded GEMINI_API_KEY from Secret Manager")
+	except Exception as e:
+		logger.debug(f"Could not load GEMINI_API_KEY from Secret Manager: {e}")
+
+	return _GEMINI_API_KEY
+
+
+# Convenience initializer to attempt to load secrets at startup (call from entrypoint before job imports)
+def init_secrets():
+	get_api_key()
+	get_gemini_api_key()
+
 
 # =========================
 # PIPELINE CONFIG

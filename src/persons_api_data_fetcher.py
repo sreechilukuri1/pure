@@ -3,18 +3,18 @@ import aiohttp
 import logging
 from datetime import datetime
 
-from src.common.config import (
-  API_KEY, 
-  MAX_CONCURRENT_REQUESTS, 
-  RAW_TABLE, 
-  API_BASE_URL, 
-  CONCEPT_BATCH_SIZE, 
-  PAGE_SIZE
+from common.config import (
+    API_KEY, 
+    MAX_CONCURRENT_REQUESTS, 
+    RAW_TABLE, 
+    API_BASE_URL, 
+    CONCEPT_BATCH_SIZE, 
+    PAGE_SIZE
 )
-from src.common.gcs_client import upload_jsonl
-from src.common.bq_client import load_jsonl_from_gcs, truncate_table
-from src.common.telemetry import start_span
-from src.utils.retry import default_retry
+from common.gcs_client import upload_jsonl
+from common.bq_client import load_jsonl_from_gcs, truncate_table
+from common.telemetry import start_span
+from utils.retry import default_retry
 
 logger = logging.getLogger(__name__)
 

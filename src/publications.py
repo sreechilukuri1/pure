@@ -6,7 +6,6 @@ import json
 import uuid
 import os
 from datetime import datetime, timezone
-from logging.handlers import RotatingFileHandler
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from google.cloud import bigquery, storage
@@ -16,48 +15,46 @@ from common.config import (
     API_KEY, API_BASE_URL, PROJECT_ID, BQ_DATASET, GCS_BUCKET,
     PUBLICATIONS, PUBLICATIONS_AUTHOR_MAP
 )
+from common.bq_client import load_jsonl_to_staging_and_merge
 
 # =========================
-# LOGGING (WITH ROTATION)
+# LOGGING (stdout / structured JSON)
 # =========================
 
-BASE_DIR = os.path.dirname(__file__)
-LOG_DIR = os.path.join(BASE_DIR, "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
 
-INFO_LOG_FILE = os.path.join(LOG_DIR, "pipeline.log")
-ERROR_LOG_FILE = os.path.join(LOG_DIR, "error.log")
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        payload = {
+            "time": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "module": record.module,
+            "func": record.funcName,
+            "lineno": record.lineno,
+        }
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        try:
+            return json.dumps(payload, default=str)
+        except Exception:
+            return str(payload)
 
-formatter = logging.Formatter(
-    '%(asctime)s [%(levelname)s] %(message)s'
-)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-# Console
 console_handler = logging.StreamHandler()
-console_handler.setFormatter(formatter)
-
-# Info logs
-info_handler = RotatingFileHandler(
-    INFO_LOG_FILE, maxBytes=10_000_000, backupCount=5
-)
-info_handler.setLevel(logging.INFO)
-info_handler.setFormatter(formatter)
-
-# Error logs
-error_handler = RotatingFileHandler(
-    ERROR_LOG_FILE, maxBytes=5_000_000, backupCount=3
-)
-error_handler.setLevel(logging.ERROR)
-error_handler.setFormatter(formatter)
-
+console_handler.setFormatter(JsonFormatter())
+logger.handlers = []
 logger.addHandler(console_handler)
-logger.addHandler(info_handler)
-logger.addHandler(error_handler)
 
-logger.info("Logging initialized ✅")
+logger.info("Logging initialized (structured stdout)")
+
+# Simple in-process metrics hooks (can be exported to Cloud Monitoring later)
+METRICS = {
+    "batches_processed": 0,
+    "publications_loaded": 0,
+    "author_map_loaded": 0,
+}
 
 # =========================
 # CONFIG
@@ -327,8 +324,18 @@ class DataFetcher:
 
             pub_schema, auth_schema = get_schemas()
 
-            self.loader.load_from_gcs(pub_uri, self.config.PUBLICATIONS_TABLE, pub_schema)
+            # Use staging+merge for publications (id as merge key) for safer upserts.
+            try:
+                load_jsonl_to_staging_and_merge(pub_uri, PUBLICATIONS, merge_keys="id", schema=pub_schema)
+                METRICS["publications_loaded"] += len(publications)
+            except Exception as e:
+                logger.error("Failed to merge publications batch: %s", e)
+                raise
+
+            # For author map we append (it's small and can be deduped later in BQ)
             self.loader.load_from_gcs(auth_uri, self.config.AUTHOR_MAP_TABLE, auth_schema)
+            METRICS["batches_processed"] += 1
+            METRICS["author_map_loaded"] += len(author_map)
 
             logger.info(f"[BATCH {batch_num}] Completed ✅")
 
@@ -387,5 +394,7 @@ def run():
     fetcher.fetch_and_load()
 
     logger.info("Pipeline finished successfully 🎉")
+    # emit metrics summary
+    logger.info(json.dumps({"metrics": METRICS}, default=str))
 
 

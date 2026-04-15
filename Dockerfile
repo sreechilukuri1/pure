@@ -5,6 +5,12 @@ FROM python:3.11-slim as builder
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
+# Default job selector (can be overridden at runtime via env or CLI)
+ENV JOB_TYPE=""
+
+# Image metadata
+LABEL maintainer="your-team@example.com"
+
 # Install system dependencies for building
 RUN apt-get update && apt-get install -y \
     gcc \

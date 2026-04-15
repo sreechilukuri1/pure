@@ -1,12 +1,12 @@
 import logging
 import time
 
-from src.utils.batching import chunked
-from src.common.genai_client import embed
-from src.common.bq_client import load_jsonl_from_gcs  , insert_rows , fetch_query
-from src.common.telemetry import start_span
-from src.utils.retry import default_retry
-from src.common.config import (
+from utils.batching import chunked
+from common.genai_client import embed
+from common.bq_client import load_jsonl_from_gcs  , insert_rows , fetch_query
+from common.telemetry import start_span
+from utils.retry import default_retry
+from common.config import (
     PROJECT_ID,
     DATASET,
     RAW_TABLE,
