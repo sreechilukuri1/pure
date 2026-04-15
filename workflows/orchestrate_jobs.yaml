@@ -1,0 +1,148 @@
+# Cloud Workflows YAML to orchestrate Cloud Run Jobs:
+# - Starts three jobs in parallel: ingest-persons, ingest-fingerprints, ingest-publications
+# - Waits for all three to complete
+# - If all succeed, starts ingest-researchers
+# Requires: Workflows API enabled, and the workflow's service account must have
+# permission to run Cloud Run Jobs: roles/run.jobsInvoker and roles/run.viewer
+# Replace PROJECT_ID and REGION with your values when deploying.
+
+main:
+  params: [project, region]
+  steps:
+  - init:
+      assign:
+        - project: ${project}
+        - region: ${region}
+
+  - start_persons:
+      call: http.post
+      args:
+        url: https://run.googleapis.com/v2/projects/${project}/locations/${region}/jobs/ingest-persons:run
+        auth:
+          type: OAuth2
+        headers:
+          Content-Type: application/json
+        body: {}
+      result: persons_resp
+
+  - start_fingerprints:
+      call: http.post
+      args:
+        url: https://run.googleapis.com/v2/projects/${project}/locations/${region}/jobs/ingest-fingerprint-concepts:run
+        auth:
+          type: OAuth2
+        headers:
+          Content-Type: application/json
+        body: {}
+      result: fingerprints_resp
+
+  - start_publications:
+      call: http.post
+      args:
+        url: https://run.googleapis.com/v2/projects/${project}/locations/${region}/jobs/ingest-publications:run
+        auth:
+          type: OAuth2
+        headers:
+          Content-Type: application/json
+        body: {}
+      result: publications_resp
+
+  # Wait for the three executions to be created and get execution names
+  - get_persons_exec_name:
+      assign:
+        - persons_exec: ${persons_resp.name}
+
+  - get_fingerprints_exec_name:
+      assign:
+        - fingerprints_exec: ${fingerprints_resp.name}
+
+  - get_publications_exec_name:
+      assign:
+        - publications_exec: ${publications_resp.name}
+
+  # Helper to poll execution status (returns the execution resource)
+  - wait_for:
+      call: sys.sleep
+      args:
+        seconds: 2
+
+  - poll_persons:
+      call: http.get
+      args:
+        url: https://run.googleapis.com/v2/${persons_exec}
+        auth:
+          type: OAuth2
+      result: persons_status
+
+  - poll_fingerprints:
+      call: http.get
+      args:
+        url: https://run.googleapis.com/v2/${fingerprints_exec}
+        auth:
+          type: OAuth2
+      result: fingerprints_status
+
+  - poll_publications:
+      call: http.get
+      args:
+        url: https://run.googleapis.com/v2/${publications_exec}
+        auth:
+          type: OAuth2
+      result: publications_status
+
+  - check_all:
+      switch:
+        - condition: ${persons_status.state == "SUCCEEDED" && fingerprints_status.state == "SUCCEEDED" && publications_status.state == "SUCCEEDED"}
+          next: start_researchers
+        - condition: ${persons_status.state == "FAILED" || fingerprints_status.state == "FAILED" || publications_status.state == "FAILED"}
+          next: fail
+        - condition: ${true}
+          next: wait_and_retry
+
+  - wait_and_retry:
+      call: sys.sleep
+      args:
+        seconds: 10
+      next: poll_persons_again
+
+  - poll_persons_again:
+      call: http.get
+      args:
+        url: https://run.googleapis.com/v2/${persons_exec}
+        auth:
+          type: OAuth2
+      result: persons_status
+
+  - poll_fingerprints_again:
+      call: http.get
+      args:
+        url: https://run.googleapis.com/v2/${fingerprints_exec}
+        auth:
+          type: OAuth2
+      result: fingerprints_status
+
+  - poll_publications_again:
+      call: http.get
+      args:
+        url: https://run.googleapis.com/v2/${publications_exec}
+        auth:
+          type: OAuth2
+      result: publications_status
+      next: check_all
+
+  - start_researchers:
+      call: http.post
+      args:
+        url: https://run.googleapis.com/v2/projects/${project}/locations/${region}/jobs/ingest-researchers:run
+        auth:
+          type: OAuth2
+        headers:
+          Content-Type: application/json
+        body: {}
+      result: researchers_resp
+
+  - return_ok:
+      return: ${ { persons: persons_status, fingerprints: fingerprints_status, publications: publications_status, researchers: researchers_resp } }
+
+  - fail:
+      raise: "One or more upstream jobs failed; aborting researcher job."
