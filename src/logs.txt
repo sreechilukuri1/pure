@@ -1,0 +1,23 @@
+nohup: ignoring input
+2026-04-10 08:57:12,967 [INFO] 🚀 Starting job: INGEST_PERSONS
+2026-04-10 08:57:19,856 [INFO] Queued persons up to offset 1000
+2026-04-10 08:57:24,888 [INFO] Queued persons up to offset 2000
+2026-04-10 08:57:29,711 [INFO] Queued persons up to offset 3000
+2026-04-10 08:57:34,904 [INFO] Queued persons up to offset 4000
+2026-04-10 08:57:39,762 [INFO] Queued persons up to offset 5000
+2026-04-10 08:57:44,699 [INFO] Queued persons up to offset 6000
+2026-04-10 08:57:49,607 [INFO] Queued persons up to offset 7000
+2026-04-10 08:57:53,157 [INFO] Queued persons up to offset 8000
+2026-04-10 08:58:03,077 [INFO] Total rows fetched and loaded:7752
+2026-04-10 08:58:03,078 [INFO] Streaming ingest pipeline complete
+2026-04-10 08:58:03,080 [INFO] ✅ Completed job: INGEST_PERSONS
+2026-04-10 08:58:03,080 [INFO] 🚀 Starting job: INGEST_FINGERPRINT_CONCEPTS
+2026-04-10 08:58:06,886 [INFO] 🚀 Total fingerprints to process: 349244
+2026-04-10 08:58:39,703 [INFO] 📤 Wave Load: Uploading 1003735 rows to BQ... (Progress: 51000/349244)
+2026-04-10 09:00:15,326 [INFO] 📤 Wave Load: Uploading 1005483 rows to BQ... (Progress: 99000/349244)
+2026-04-10 09:01:55,737 [INFO] 📤 Wave Load: Uploading 1002590 rows to BQ... (Progress: 150500/349244)
+2026-04-10 09:03:27,553 [INFO] 📤 Wave Load: Uploading 1004910 rows to BQ... (Progress: 201500/349244)
+2026-04-10 09:05:26,102 [INFO] 📤 Wave Load: Uploading 1003624 rows to BQ... (Progress: 251500/349244)
+2026-04-10 09:07:17,284 [INFO] 📤 Wave Load: Uploading 1010374 rows to BQ... (Progress: 304500/349244)
+2026-04-10 09:08:52,852 [INFO] 📤 Wave Load: Uploading 1022366 rows to BQ... (Progress: 349500/349244)
+2026-04-10 09:10:16,696 [INFO] 🚀 Step 3: Fetching 967120 unique concepts in parallel...
